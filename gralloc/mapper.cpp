@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+//#define LOG_NDEBUG 0
+
 #include <limits.h>
 #include <errno.h>
 #include <pthread.h>
@@ -71,8 +73,9 @@ static int gralloc_map(gralloc_module_t const* module, buffer_handle_t handle)
         ALOGE("%s: could not mmap %s", __func__, strerror(errno));
         return -errno;
     }
-    ALOGV("%s: base %p %d %d %d %d\n", __func__, mappedAddress, hnd->size,
-          hnd->width, hnd->height, hnd->stride);
+    ALOGV("%s: fd(%d, %d, %d) base %p %d %d %d %d %d\n", __func__,
+          hnd->fd, hnd->fd1, hnd->fd2, hnd->base, hnd->size,
+          hnd->width, hnd->height, hnd->stride, hnd->format);
     hnd->base = mappedAddress;
 
     if (hnd->fd1 >= 0) {
@@ -122,8 +125,9 @@ static int gralloc_unmap(gralloc_module_t const* module, buffer_handle_t handle)
         ALOGE("%s :could not unmap %s %p %d", __func__, strerror(errno),
               hnd->base, hnd->size);
     }
-    ALOGV("%s: base %p %d %d %d %d\n", __func__, hnd->base, hnd->size,
-          hnd->width, hnd->height, hnd->stride);
+    ALOGV("%s: fd(%d, %d, %d) base %p %d %d %d %d %d\n", __func__,
+          hnd->fd, hnd->fd1, hnd->fd2, hnd->base, hnd->size,
+          hnd->width, hnd->height, hnd->stride, hnd->format);
     hnd->base = 0;
     if (hnd->fd1 >= 0) {
         if (!hnd->base1)
@@ -144,6 +148,39 @@ static int gralloc_unmap(gralloc_module_t const* module, buffer_handle_t handle)
         hnd->base2 = 0;
     }
     return 0;
+}
+
+static int gralloc_lock_ycbcr_get_plane_info(private_handle_t* hnd, struct android_ycbcr* ycbcr)
+{
+    int err = 0;
+    size_t chroma_vstride = 0;
+    size_t chroma_size = 0;
+    size_t ext_size = 256;
+
+    memset(ycbcr->reserved, 0, sizeof(ycbcr->reserved));
+
+    switch (hnd->format) {
+        case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M_TILED:
+            chroma_vstride = ALIGN(hnd->height / 2, 32);
+            chroma_size = chroma_vstride * hnd->stride + ext_size;
+            break;
+        case HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M:
+        case HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M_FULL:
+        case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M:
+            chroma_size = hnd->stride * ALIGN(hnd->vstride / 2, 8) + ext_size;
+            break;
+        case HAL_PIXEL_FORMAT_EXYNOS_YV12_M:
+        case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_P_M:
+            chroma_size = (hnd->vstride / 2) * ALIGN(hnd->stride / 2, 16) + ext_size;
+            break;
+        default:
+            ALOGE("%s: unknown format: 0x%x", __func__, hnd->format);
+            break;
+    }
+
+    ALOGE("%s: not supported!", __func__);
+
+    return -EINVAL;
 }
 
 /*****************************************************************************/
@@ -167,8 +204,9 @@ int gralloc_register_buffer(gralloc_module_t const* module,
         return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    ALOGV("%s: base %p %d %d %d %d\n", __func__, hnd->base, hnd->size,
-          hnd->width, hnd->height, hnd->stride);
+    ALOGV("%s: fd(%d, %d, %d) base %p %d %d %d %d %d\n", __func__,
+          hnd->fd, hnd->fd1, hnd->fd2, hnd->base, hnd->size,
+          hnd->width, hnd->height, hnd->stride, hnd->format);
 
     int ret;
     ret = ion_import(getIonFd(module), hnd->fd, &hnd->handle);
@@ -195,8 +233,9 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
         return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    ALOGV("%s: base %p %d %d %d %d\n", __func__, hnd->base, hnd->size,
-          hnd->width, hnd->height, hnd->stride);
+    ALOGV("%s: fd(%d, %d, %d) base %p %d %d %d %d %d\n", __func__,
+          hnd->fd, hnd->fd1, hnd->fd2, hnd->base, hnd->size,
+          hnd->width, hnd->height, hnd->stride, hnd->format);
 
     gralloc_unmap(module, handle);
 
@@ -237,6 +276,21 @@ int gralloc_lock(gralloc_module_t const* module,
         vaddr[2] = (void*)hnd->base2;
 
     return 0;
+}
+
+int gralloc_lock_ycbcr(gralloc_module_t const* module,
+                        buffer_handle_t handle, int usage,
+                        int l, int t, int w, int h,
+                        struct android_ycbcr *ycbcr)
+{
+    if (private_handle_t::validate(handle) < 0)
+        return -EINVAL;
+
+    private_handle_t* hnd = (private_handle_t*)handle;
+    if (!hnd->base)
+        gralloc_map(module, hnd);
+
+    return gralloc_lock_ycbcr_get_plane_info(hnd, ycbcr);
 }
 
 int gralloc_unlock(gralloc_module_t const* module,

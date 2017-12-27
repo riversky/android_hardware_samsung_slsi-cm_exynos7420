@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+//#define LOG_NDEBUG 0
+
 #include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -78,6 +80,11 @@ extern int gralloc_lock(gralloc_module_t const* module,
                         int l, int t, int w, int h,
                         void** vaddr);
 
+extern int gralloc_lock_ycbcr(gralloc_module_t const* module,
+                        buffer_handle_t handle, int usage,
+                        int l, int t, int w, int h,
+                        struct android_ycbcr *ycbcr);
+
 extern int gralloc_unlock(gralloc_module_t const* module,
                           buffer_handle_t handle);
 
@@ -107,6 +114,7 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
     .registerBuffer = gralloc_register_buffer,
     .unregisterBuffer = gralloc_unregister_buffer,
     .lock = gralloc_lock,
+    .lock_ycbcr = gralloc_lock_ycbcr,
     .unlock = gralloc_unlock,
 },
 .framebuffer = 0,
@@ -280,9 +288,9 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
         if ((usage & GRALLOC_USAGE_HW_CAMERA_ZSL) == GRALLOC_USAGE_HW_CAMERA_ZSL) {
             format = HAL_PIXEL_FORMAT_YCbCr_422_I; // YUYV
         } else if (usage & GRALLOC_USAGE_HW_TEXTURE) {
-            format = HAL_PIXEL_FORMAT_EXYNOS_YV12_M;
+            format = HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M;
         } else if (usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) {
-            format = HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M; // NV12M
+            format = HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M;
         }
     }
     if (usage & GRALLOC_USAGE_PROTECTED)
@@ -487,7 +495,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         *device = &dev->device.common;
         status = 0;
     } else {
-        ALOGE("client name %s is not GRALLOC_HARDWARE_GPU0", name);
+        status = fb_device_open(module, name, device);
     }
     return status;
 }

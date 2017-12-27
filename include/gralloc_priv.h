@@ -93,6 +93,9 @@ struct private_handle_t {
     int     vstride;
 
     // FIXME: the attributes below should be out-of-line
+    int     format_2;
+    int     padding_1[20 - 16];
+
     union {
         void*    base;
         uint64_t padding;
@@ -109,6 +112,10 @@ struct private_handle_t {
     ion_user_handle_t handle1;
     ion_user_handle_t handle2;
 
+    int     padding_2[36 - 29];
+
+    uint64_t     format_3;
+
 #ifdef __cplusplus
     static const int sNumFds = 3;
     static const int sNumInts = 34;
@@ -123,6 +130,7 @@ struct private_handle_t {
         version = sizeof(native_handle);
         numInts = sNumInts + 2;
         numFds = sNumFds - 2;
+        format_2 = format_3 = format;
     }
 
     private_handle_t(int fd, int size, int flags, int w,
@@ -135,6 +143,7 @@ struct private_handle_t {
         version = sizeof(native_handle);
         numInts = sNumInts + 2;
         numFds = sNumFds - 2;
+        format_2 = format_3 = format;
     }
 
     private_handle_t(int fd, int fd1, int size, int flags, int w,
@@ -147,6 +156,7 @@ struct private_handle_t {
         version = sizeof(native_handle);
         numInts = sNumInts + 1;
         numFds = sNumFds - 1;
+        format_2 = format_3 = format;
     }
 
     private_handle_t(int fd, int fd1, int fd2, int size, int flags, int w,
@@ -159,6 +169,7 @@ struct private_handle_t {
         version = sizeof(native_handle);
         numInts = sNumInts;
         numFds = sNumFds;
+        format_2 = format_3 = format;
     }
     ~private_handle_t() {
         magic = 0;

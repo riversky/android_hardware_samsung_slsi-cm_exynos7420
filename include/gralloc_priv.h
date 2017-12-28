@@ -94,7 +94,11 @@ struct private_handle_t {
 
     // FIXME: the attributes below should be out-of-line
     int     format_2;
-    int     padding_1[20 - 16];
+
+    ion_user_handle_t handle;
+    ion_user_handle_t handle1;
+    ion_user_handle_t handle2;
+    int     padding_1[20 - 19];
 
     union {
         void*    base;
@@ -108,13 +112,12 @@ struct private_handle_t {
         void*    base2;
         uint64_t padding2;
     };
-    ion_user_handle_t handle;
-    ion_user_handle_t handle1;
-    ion_user_handle_t handle2;
 
-    int     padding_2[36 - 29];
+    int     padding_2[36 - 26];
 
     uint64_t     format_3;
+
+    int 	padding_3[40 - 38];
 
 #ifdef __cplusplus
     static const int sNumFds = 3;
@@ -127,6 +130,8 @@ struct private_handle_t {
         vstride(0), base(0), base1(0), base2(0), handle(0), handle1(0),
         handle2(0)
     {
+        static_assert(sizeof(private_handle_t)==((sNumFds+sNumInts)*sizeof(int) + sizeof(native_handle_t)),
+            "private_handle_t has wrong size");
         version = sizeof(native_handle);
         numInts = sNumInts + 2;
         numFds = sNumFds - 2;
@@ -140,6 +145,8 @@ struct private_handle_t {
         vstride(vstride), base(0), base1(0), base2(0), handle(0), handle1(0),
         handle2(0)
     {
+        static_assert(sizeof(private_handle_t)==((sNumFds+sNumInts)*sizeof(int) + sizeof(native_handle_t)),
+            "private_handle_t has wrong size");
         version = sizeof(native_handle);
         numInts = sNumInts + 2;
         numFds = sNumFds - 2;
@@ -153,6 +160,8 @@ struct private_handle_t {
         vstride(vstride), base(0), base1(0), base2(0), handle(0), handle1(0),
         handle2(0)
     {
+        static_assert(sizeof(private_handle_t)==((sNumFds+sNumInts)*sizeof(int) + sizeof(native_handle_t)),
+            "private_handle_t has wrong size");
         version = sizeof(native_handle);
         numInts = sNumInts + 1;
         numFds = sNumFds - 1;
@@ -166,6 +175,8 @@ struct private_handle_t {
         vstride(vstride), base(0), base1(0), base2(0), handle(0), handle1(0),
         handle2(0)
     {
+        static_assert(sizeof(private_handle_t)==((sNumFds+sNumInts)*sizeof(int) + sizeof(native_handle_t)),
+            "private_handle_t has wrong size");
         version = sizeof(native_handle);
         numInts = sNumInts;
         numFds = sNumFds;
